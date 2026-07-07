@@ -1,0 +1,22 @@
+--- src/pages/LandingPage.tsx
++++ src/pages/LandingPage.tsx
+@@ -4,3 +4,2 @@
+ import { useAuth } from "@/lib/AuthContext";
+-import { signInWithGoogle } from "@/lib/firebase"; // wait, the previous code had signInWithGoogle from context
+ 
+@@ -20,3 +19,3 @@
+           {!user && (
+-            <button onClick={signInWithGoogle} className="px-5 py-2.5 rounded-full bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors flex items-center gap-2">
++            <Link to="/login" className="px-5 py-2.5 rounded-full bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors flex items-center gap-2">
+               Sign In
+-            </button>
++            </Link>
+           )}
+@@ -46,5 +45,5 @@
+             ) : (
+-              <button onClick={signInWithGoogle} className="px-8 py-4 rounded-full bg-white text-black font-bold text-base hover:bg-slate-200 transition-all active:scale-95 flex items-center gap-2">
++              <Link to="/login" className="px-8 py-4 rounded-full bg-white text-black font-bold text-base hover:bg-slate-200 transition-all active:scale-95 flex items-center gap-2">
+                 Start Free Trial <ArrowRight className="w-4 h-4" />
+-              </button>
++              </Link>
+             )}
