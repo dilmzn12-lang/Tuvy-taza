@@ -1,13 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'super_admin';
     }
 
     function isMemberOf(restaurantId) {
@@ -18,41 +22,99 @@ service cloud.firestore {
       return isMemberOf(restaurantId) && getUserData().role == 'owner';
     }
 
+    function isEmployeeOf(restaurantId) {
+      return isMemberOf(restaurantId) && getUserData().role == 'employee';
+    }
+
+    function isOwnedRestaurant(restaurantId) {
+      return isAuthenticated()
+        && isValidId(restaurantId)
+        && get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId == request.auth.uid;
+    }
+
+    function isSelfProfileUpdateAllowed() {
+      return (
+        (
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.restaurantId == resource.data.restaurantId
+        ) ||
+        (
+          request.resource.data.role == 'owner' &&
+          request.resource.data.restaurantId is string &&
+          isOwnedRestaurant(request.resource.data.restaurantId)
+        )
+      ) && request.resource.data.role != 'super_admin';
+    }
+
+    function isSelfProfileCreateAllowed() {
+      return request.resource.data.role != 'super_admin' && (
+        request.resource.data.restaurantId == null ||
+        (
+          request.resource.data.role == 'owner' &&
+          request.resource.data.restaurantId is string &&
+          isOwnedRestaurant(request.resource.data.restaurantId)
+        )
+      );
+    }
+
     function isValidId(id) {
       return id.matches('^[a-zA-Z0-9_\\-]+$') && id.size() <= 100 && id.size() > 0;
     }
 
+    function resourceRestaurantId() {
+      return request.method == 'create' ? request.resource.data.restaurantId : resource.data.restaurantId;
+    }
+
     match /restaurants/{restaurantId} {
       allow get: if true;
-      allow list: if false; // Users shouldn't list all restaurants
+      allow list: if isSuperAdmin();
       allow create: if isAuthenticated() && isValidId(restaurantId) && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isOwnerOf(restaurantId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'createdAt']));
+      allow update: if (isOwnerOf(restaurantId) || isSuperAdmin())
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isOwnerOf(resource.data.restaurantId));
-      allow create: if isAuthenticated() && (request.auth.uid == userId || isOwnerOf(request.resource.data.restaurantId));
-      allow update, delete: if isAuthenticated() && (request.auth.uid == userId || isOwnerOf(resource.data.restaurantId));
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin() || isOwnerOf(resource.data.restaurantId));
+      allow create: if (isAuthenticated() && request.auth.uid == userId && isSelfProfileCreateAllowed())
+        || (isAuthenticated() && isOwnerOf(request.resource.data.restaurantId));
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && isSelfProfileUpdateAllowed()) ||
+        isSuperAdmin() ||
+        isOwnerOf(resource.data.restaurantId)
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isSuperAdmin() ||
+        isOwnerOf(resource.data.restaurantId)
+      );
     }
 
     match /menuCategories/{docId} {
       allow read: if true;
-      allow write: if isMemberOf(resource.data.restaurantId) || isMemberOf(request.resource.data.restaurantId);
+      allow create, update, delete: if isSuperAdmin() || isMemberOf(resourceRestaurantId());
     }
 
     match /menuItems/{docId} {
       allow read: if true;
-      allow write: if isMemberOf(resource.data.restaurantId) || isMemberOf(request.resource.data.restaurantId);
+      allow create, update, delete: if isSuperAdmin() || isMemberOf(resourceRestaurantId());
     }
 
     match /tables/{docId} {
       allow read: if true;
-      allow write: if isMemberOf(resource.data.restaurantId) || isMemberOf(request.resource.data.restaurantId);
+      allow create, update, delete: if isSuperAdmin() || isMemberOf(resourceRestaurantId());
     }
 
     match /orders/{docId} {
-      allow read: if true; // In production we should lock this down, but allowing for now for customer realtime updates
-      allow write: if true; // Customers can submit orders
+      allow create: if request.resource.data.keys().hasAll(['restaurantId', 'tableId', 'status', 'totalAmount', 'createdAt'])
+        && isValidId(request.resource.data.restaurantId)
+        && request.resource.data.restaurantId.size() > 0
+        && request.resource.data.tableId is string
+        && request.resource.data.tableId.size() > 0
+        && request.resource.data.status is string
+        && request.resource.data.status.size() > 0
+        && request.resource.data.totalAmount is number;
+      allow read, update, delete: if isSuperAdmin() || isMemberOf(resource.data.restaurantId);
     }
   }
 }

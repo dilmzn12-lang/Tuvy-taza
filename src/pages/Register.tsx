@@ -1,14 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Loader2, Store } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { homeRouteForRole } from '@/lib/roles';
 
-export function Login() {
-  const { user, loading, signInWithEmail, signInWithGoogle, role } = useAuth();
+export function Register() {
+  const { user, loading, signUpWithEmail, signInWithGoogle, role } = useAuth();
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,13 +29,24 @@ export function Login() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await signInWithEmail(email, password);
+      await signUpWithEmail(email, password, name);
+      navigate('/onboarding', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in.');
+      setError(err instanceof Error ? err.message : 'Unable to create your account.');
     } finally {
       setSubmitting(false);
     }
@@ -43,7 +57,7 @@ export function Login() {
     try {
       await signInWithGoogle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in with Google.');
+      setError(err instanceof Error ? err.message : 'Unable to sign up with Google.');
     }
   };
 
@@ -57,8 +71,8 @@ export function Login() {
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
           <Store className="h-8 w-8" />
         </div>
-        <h1 className="mb-2 text-center text-3xl font-bold text-white">Welcome to TUVY OS</h1>
-        <p className="mb-8 text-center text-slate-400">Sign in to manage your restaurant, access the POS, and view live operations.</p>
+        <h1 className="mb-2 text-center text-3xl font-bold text-white">Create your TUVY OS account</h1>
+        <p className="mb-8 text-center text-slate-400">Start with a secure customer account. You can create or join a restaurant after sign-up.</p>
 
         <button
           type="button"
@@ -71,11 +85,22 @@ export function Login() {
 
         <div className="mb-6 flex items-center gap-4 text-xs uppercase tracking-[0.2em] text-slate-600">
           <div className="h-px flex-1 bg-slate-800" />
-          <span>or sign in with email</span>
+          <span>or register with email</span>
           <div className="h-px flex-1 bg-slate-800" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-300">Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500"
+              placeholder="Avery Johnson"
+            />
+          </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-300">Email</label>
             <input
@@ -92,12 +117,24 @@ export function Login() {
             <label className="block text-sm font-medium text-slate-300">Password</label>
             <input
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500"
-              placeholder="••••••••"
+              placeholder="At least 8 characters"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-300">Confirm password</label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              required
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500"
+              placeholder="Repeat your password"
             />
           </div>
 
@@ -109,18 +146,14 @@ export function Login() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 font-bold text-black transition-all hover:bg-amber-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-            Sign in
+            Create account
           </button>
         </form>
 
         <div className="mt-6 flex flex-col items-center justify-center gap-3 text-sm text-slate-500 sm:flex-row">
-          <Link to="/forgot-password" className="transition-colors hover:text-white">Forgot password?</Link>
+          <Link to="/login" className="transition-colors hover:text-white">Already have an account?</Link>
           <span className="hidden sm:block">•</span>
-          <Link to="/register" className="transition-colors hover:text-white">Create account</Link>
-          <span className="hidden sm:block">•</span>
-          <Link to="/" className="inline-flex items-center gap-1 transition-colors hover:text-white">
-            Back to home <Store className="h-4 w-4" />
-          </Link>
+          <Link to="/" className="transition-colors hover:text-white">Back to home</Link>
         </div>
       </motion.div>
     </div>
