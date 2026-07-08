@@ -1,14 +1,15 @@
 import { motion } from "motion/react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
-import { Store, Loader2, ArrowRight } from "lucide-react";
+import { Store } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export function Login() {
   const { user, loading, signInWithGoogle, restaurantId } = useAuth();
   const navigate = useNavigate();
 
   if (loading) {
-    return <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return <LoadingScreen dvh />;
   }
 
   if (user) {

@@ -1,11 +1,13 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Users, Plus, Shield, ShieldAlert, Trash2, Loader2, MoreVertical } from "lucide-react";
+import { ArrowLeft, Users, Plus, Shield, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { mapDocs } from "@/lib/orders";
 
 interface StaffMember {
   id: string;
@@ -31,8 +33,7 @@ export function StaffManagement() {
     try {
       const q = query(collection(db, 'users'), where('restaurantId', '==', restaurantId));
       const snap = await getDocs(q);
-      const staffList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
-      setStaff(staffList);
+      setStaff(mapDocs<StaffMember>(snap.docs));
     } catch (e) {
       console.error(e);
     } finally {
@@ -70,7 +71,7 @@ export function StaffManagement() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-amber-500/20">

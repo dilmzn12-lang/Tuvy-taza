@@ -1,20 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Search, Plus, Minus, CreditCard, Banknote, Printer, ChefHat, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Plus, Minus, CreditCard, Banknote, Printer, ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  imageUrl?: string;
-  available: boolean;
-}
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { createOrder, extractCategories, fetchMenuItems } from "@/lib/orders";
+import type { MenuItem } from "@/lib/types";
 
 export function POSDashboard() {
   const { restaurantId } = useAuth();
@@ -33,13 +24,9 @@ export function POSDashboard() {
   const loadMenu = async () => {
     if (!restaurantId) return;
     try {
-      const q = query(collection(db, 'menuItems'), where('restaurantId', '==', restaurantId));
-      const snapshot = await getDocs(q);
-      const fetchedItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
+      const fetchedItems = await fetchMenuItems(restaurantId);
       setItems(fetchedItems);
-      
-      const cats = new Set(fetchedItems.map(i => i.category));
-      setCategories(["All", ...Array.from(cats)]);
+      setCategories(extractCategories(fetchedItems));
     } catch (e) {
       console.error("Error loading menu", e);
     } finally {
@@ -70,22 +57,18 @@ export function POSDashboard() {
   const handleSendToKitchen = async () => {
     if (cart.length === 0 || !restaurantId) return;
     try {
-      const orderData = {
+      await createOrder({
         restaurantId,
-        items: cart.map(c => ({
+        lines: cart.map(c => ({
           id: c.item.id,
           name: c.item.name,
-          quantity: c.quantity,
           price: c.item.price,
-          status: 'pending'
+          quantity: c.quantity,
         })),
         total,
-        status: 'pending',
         type: 'walk-in',
         tableInfo: 'Walk-in',
-        createdAt: serverTimestamp()
-      };
-      await addDoc(collection(db, 'orders'), orderData);
+      });
       setCart([]);
       alert("Order sent to kitchen!");
     } catch (e) {
@@ -100,7 +83,7 @@ export function POSDashboard() {
   const total = subtotal + tax;
 
   if (loading) {
-    return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return <LoadingScreen />;
   }
 
   return (

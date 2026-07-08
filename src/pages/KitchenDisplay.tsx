@@ -5,24 +5,9 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, updateDoc, doc, deleteDoc, Timestamp } from "firebase/firestore";
-
-type OrderItem = {
-  id: string;
-  name: string;
-  quantity: number;
-  notes?: string;
-  status: 'pending' | 'preparing' | 'ready';
-  price: number;
-};
-
-type Order = {
-  id: string;
-  tableInfo: string;
-  createdAt: Timestamp | null;
-  status: 'pending' | 'preparing' | 'ready' | 'completed';
-  items: OrderItem[];
-};
+import { updateDoc, doc, type Timestamp } from "firebase/firestore";
+import { subscribeActiveOrders } from "@/lib/orders";
+import type { Order } from "@/lib/types";
 
 export function KitchenDisplay() {
   const { restaurantId } = useAuth();
@@ -33,29 +18,15 @@ export function KitchenDisplay() {
   useEffect(() => {
     if (!restaurantId) return;
 
-    const q = query(
-      collection(db, 'orders'),
-      where('restaurantId', '==', restaurantId),
-      where('status', 'in', ['pending', 'preparing', 'ready'])
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
-      
+    return subscribeActiveOrders(restaurantId, ['pending', 'preparing', 'ready'], (fetchedOrders) => {
       // Sort by creation time manually as we can't always sort easily without an index
-      fetchedOrders.sort((a, b) => {
+      const sorted = [...fetchedOrders].sort((a, b) => {
         const timeA = a.createdAt?.toMillis() || Date.now();
         const timeB = b.createdAt?.toMillis() || Date.now();
         return timeA - timeB;
       });
-
-      setOrders(fetchedOrders);
+      setOrders(sorted);
     });
-
-    return () => unsubscribe();
   }, [restaurantId]);
 
   // Update timer tick

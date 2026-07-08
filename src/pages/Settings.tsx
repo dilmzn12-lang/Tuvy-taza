@@ -5,6 +5,7 @@ import { ArrowLeft, Settings as SettingsIcon, Save, Store, MapPin, Phone, Loader
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export function Settings() {
   const { restaurantId } = useAuth();
@@ -58,7 +59,7 @@ export function Settings() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-amber-500/20">
