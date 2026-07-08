@@ -4,12 +4,15 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Settings as SettingsIcon, Save, Store, MapPin, Phone, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 export function Settings() {
   const { restaurantId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState({
     name: "",
     address: "",
@@ -24,6 +27,8 @@ export function Settings() {
 
   const loadSettings = async () => {
     if (!restaurantId) return;
+    setError(null);
+    setLoading(true);
     try {
       const snap = await getDoc(doc(db, 'restaurants', restaurantId));
       if (snap.exists()) {
@@ -38,6 +43,7 @@ export function Settings() {
       }
     } catch (e) {
       console.error(e);
+      setError(getErrorMessage(e, "Could not load your settings. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -52,7 +58,7 @@ export function Settings() {
       alert("Settings saved!");
     } catch (e) {
       console.error(e);
-      alert("Failed to save settings");
+      alert(getErrorMessage(e, "Failed to save settings. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -77,6 +83,7 @@ export function Settings() {
       <main className="max-w-3xl mx-auto p-8">
         <div className="bg-[#080808] border border-slate-800 rounded-2xl p-8">
           <form onSubmit={handleSave} className="space-y-6">
+            {error && <ErrorBanner message={error} onRetry={loadSettings} />}
             
             <div className="space-y-4">
               <h3 className="text-white font-bold text-lg flex items-center gap-2">

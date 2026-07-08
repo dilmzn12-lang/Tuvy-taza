@@ -1,11 +1,27 @@
 import { motion } from "motion/react";
-import { Link, useNavigate, Navigate } from "react-router-dom";
-import { Store, Loader2, ArrowRight } from "lucide-react";
+import { Link, Navigate } from "react-router-dom";
+import { Store, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 export function Login() {
   const { user, loading, signInWithGoogle, restaurantId } = useAuth();
-  const navigate = useNavigate();
+  const [signingIn, setSigningIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSignIn = async () => {
+    setError(null);
+    setSigningIn(true);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setError(getErrorMessage(e, "Could not sign in with Google. Please try again."));
+    } finally {
+      setSigningIn(false);
+    }
+  };
 
   if (loading) {
     return <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
@@ -31,13 +47,20 @@ export function Login() {
         </div>
         <h1 className="text-3xl font-bold text-white mb-2">Welcome to TUVY OS</h1>
         <p className="text-slate-400 mb-8">Sign in to manage your restaurant, access the POS, and view live orders.</p>
-        
+
+        {error && <ErrorBanner message={error} className="mb-6 text-left" />}
+
         <button 
-          onClick={signInWithGoogle}
-          className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-slate-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+          onClick={handleSignIn}
+          disabled={signingIn}
+          className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-slate-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50"
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-          Continue with Google
+          {signingIn ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+          )}
+          {signingIn ? "Signing in..." : "Continue with Google"}
         </button>
         
         <div className="mt-8 flex items-center gap-4 text-sm text-slate-500 justify-center">

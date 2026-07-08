@@ -15,15 +15,17 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-export async function testConnection() {
+export async function testConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firebase connected successfully");
+    return true;
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+      console.error("Please check your Firebase configuration.", error);
     } else {
       console.error("Firebase connection test failed:", error);
     }
+    return false;
   }
 }

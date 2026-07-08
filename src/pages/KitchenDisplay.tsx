@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { collection, query, where, onSnapshot, updateDoc, doc, deleteDoc, Timestamp } from "firebase/firestore";
 
 type OrderItem = {
@@ -28,6 +30,7 @@ export function KitchenDisplay() {
   const { restaurantId } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [error, setError] = useState<string | null>(null);
 
   // Subscribe to live orders
   useEffect(() => {
@@ -39,21 +42,29 @@ export function KitchenDisplay() {
       where('status', 'in', ['pending', 'preparing', 'ready'])
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
-      
-      // Sort by creation time manually as we can't always sort easily without an index
-      fetchedOrders.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis() || Date.now();
-        const timeB = b.createdAt?.toMillis() || Date.now();
-        return timeA - timeB;
-      });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fetchedOrders = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Order[];
 
-      setOrders(fetchedOrders);
-    });
+        // Sort by creation time manually as we can't always sort easily without an index
+        fetchedOrders.sort((a, b) => {
+          const timeA = a.createdAt?.toMillis() || Date.now();
+          const timeB = b.createdAt?.toMillis() || Date.now();
+          return timeA - timeB;
+        });
+
+        setError(null);
+        setOrders(fetchedOrders);
+      },
+      (err) => {
+        console.error("Error subscribing to orders", err);
+        setError(getErrorMessage(err, "Lost connection to live orders. Check your connection and refresh."));
+      }
+    );
 
     return () => unsubscribe();
   }, [restaurantId]);
@@ -104,6 +115,7 @@ export function KitchenDisplay() {
       });
     } catch (e) {
       console.error("Error updating order status:", e);
+      alert(getErrorMessage(e, "Could not update the order. Please try again."));
     }
   };
 
@@ -114,6 +126,7 @@ export function KitchenDisplay() {
       });
     } catch (e) {
       console.error("Error completing order:", e);
+      alert(getErrorMessage(e, "Could not complete the order. Please try again."));
     }
   };
 
@@ -145,6 +158,7 @@ export function KitchenDisplay() {
       </header>
 
       <main className="flex-1 overflow-x-auto overflow-y-hidden p-6">
+        {error && <ErrorBanner message={error} className="mb-6" />}
         <div className="flex gap-6 h-full items-start">
           <AnimatePresence>
             {orders.map((order) => {

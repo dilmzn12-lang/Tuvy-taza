@@ -2,6 +2,8 @@ import React from "react";
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebase';
+import { getErrorMessage } from '@/lib/utils';
+import { ErrorBanner } from '@/components/ErrorBanner';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Loader2, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -21,6 +23,8 @@ export function MenuManagement() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', price: '', category: '' });
 
   useEffect(() => {
@@ -31,12 +35,15 @@ export function MenuManagement() {
 
   const loadMenu = async () => {
     if (!restaurantId) return;
+    setError(null);
+    setLoading(true);
     try {
       const q = query(collection(db, 'menuItems'), where('restaurantId', '==', restaurantId));
       const snapshot = await getDocs(q);
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
     } catch (e) {
       console.error("Error loading menu", e);
+      setError(getErrorMessage(e, "Could not load the menu. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -45,6 +52,7 @@ export function MenuManagement() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!restaurantId) return;
+    setSaving(true);
     try {
       const newItem = {
         restaurantId,
@@ -60,6 +68,9 @@ export function MenuManagement() {
       setFormData({ name: '', description: '', price: '', category: '' });
     } catch (e) {
       console.error("Error adding item", e);
+      alert(getErrorMessage(e, "Could not add the menu item. Please try again."));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -69,6 +80,7 @@ export function MenuManagement() {
       setItems(items.filter(item => item.id !== id));
     } catch (e) {
       console.error("Error deleting item", e);
+      alert(getErrorMessage(e, "Could not delete the menu item. Please try again."));
     }
   };
 
@@ -116,11 +128,13 @@ export function MenuManagement() {
               </div>
               <div className="col-span-2 flex justify-end gap-3 mt-2">
                 <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
-                <button type="submit" className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-black hover:bg-slate-200 transition-colors">Save Item</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-bold bg-white text-black hover:bg-slate-200 transition-colors disabled:opacity-50">{saving ? "Saving..." : "Save Item"}</button>
               </div>
             </form>
           </div>
         )}
+
+        {error && <ErrorBanner message={error} onRetry={loadMenu} className="mb-6" />}
 
         <div className="grid gap-4">
           {items.map(item => (
