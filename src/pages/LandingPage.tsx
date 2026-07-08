@@ -25,7 +25,7 @@ export function LandingPage() {
           <a href="#customers" className="hover:text-white transition-colors">Customers</a>
         </div>
         <div className="flex items-center gap-4">
-          <Link to="/menu/demo" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">View Demo Menu</Link>
+          <Link to="/register" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">Create account</Link>
           {user ? (
             <div className="flex items-center gap-3">
               <Link to="/dashboard" className="text-sm font-bold bg-white text-black px-4 py-2 rounded-full hover:bg-slate-200 transition-colors flex items-center gap-2">

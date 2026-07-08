@@ -1,20 +1,50 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/lib/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Navigate, Outlet } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { VerifyEmailBanner } from './VerifyEmailBanner';
+import { homeRouteForRole, isManagementRole, requiresRestaurant } from '@/lib/roles';
+import type { Role } from '@/lib/types';
 
-export function ProtectedRoute() {
-  const { user, loading, restaurantId } = useAuth();
+interface ProtectedRouteProps {
+  allow?: Role[];
+}
+
+export function ProtectedRoute({ allow }: ProtectedRouteProps) {
+  const { user, loading, restaurantId, role, emailVerified } = useAuth();
 
   if (loading) {
-    return <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[#050505]">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
+    );
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!restaurantId) {
+  if (!role) {
+    return <Navigate to={homeRouteForRole(null)} replace />;
+  }
+
+  if (allow && !allow.includes(role)) {
+    return <Navigate to={homeRouteForRole(role)} replace />;
+  }
+
+  if (requiresRestaurant(role) && !restaurantId) {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  const showVerificationBanner = isManagementRole(role) && !emailVerified;
+
+  if (showVerificationBanner) {
+    return (
+      <div className="min-h-[100dvh] bg-[#050505] text-slate-300">
+        <VerifyEmailBanner />
+        <Outlet />
+      </div>
+    );
   }
 
   return <Outlet />;
