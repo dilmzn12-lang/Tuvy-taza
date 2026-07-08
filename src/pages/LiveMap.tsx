@@ -4,8 +4,8 @@ import { ArrowLeft, Users, Clock, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { subscribeActiveOrders } from "@/lib/orders";
+import type { Order } from "@/lib/types";
 
 type TableData = {
   id: number;
@@ -42,26 +42,15 @@ const STATUS_COLORS = {
 
 export function LiveMap() {
   const { restaurantId } = useAuth();
-  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
 
   useEffect(() => {
     if (!restaurantId) return;
-
-    const q = query(
-      collection(db, 'orders'),
-      where('restaurantId', '==', restaurantId),
-      where('status', 'in', ['pending', 'preparing', 'ready', 'completed'])
+    return subscribeActiveOrders(
+      restaurantId,
+      ['pending', 'preparing', 'ready', 'completed'],
+      setActiveOrders,
     );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setActiveOrders(fetchedOrders);
-    });
-
-    return () => unsubscribe();
   }, [restaurantId]);
 
   const getTableStatus = (tableId: number) => {

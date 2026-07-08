@@ -1,18 +1,16 @@
 import { motion } from "motion/react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Users, DollarSign, ShoppingBag, TrendingUp, Bell, Search, Menu, LayoutDashboard, UtensilsCrossed, Settings, MapPin, ChefHat, Smartphone, Store, Loader2 } from "lucide-react";
+import { Users, DollarSign, ShoppingBag, TrendingUp, Bell, Search, LayoutDashboard, UtensilsCrossed, Settings, MapPin, ChefHat, Smartphone } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export function OwnerDashboard() {
   const { user, loading, restaurantId, logOut } = useAuth();
 
   if (loading || !user || !restaurantId) {
-    return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return <LoadingScreen />;
   }
 
   return (

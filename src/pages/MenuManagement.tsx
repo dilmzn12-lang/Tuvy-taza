@@ -2,19 +2,12 @@ import React from "react";
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { Loader2, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
+import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  imageUrl?: string;
-  available: boolean;
-}
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { fetchMenuItems } from '@/lib/orders';
+import type { MenuItem } from '@/lib/types';
 
 export function MenuManagement() {
   const { restaurantId } = useAuth();
@@ -32,9 +25,7 @@ export function MenuManagement() {
   const loadMenu = async () => {
     if (!restaurantId) return;
     try {
-      const q = query(collection(db, 'menuItems'), where('restaurantId', '==', restaurantId));
-      const snapshot = await getDocs(q);
-      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem)));
+      setItems(await fetchMenuItems(restaurantId));
     } catch (e) {
       console.error("Error loading menu", e);
     } finally {
@@ -73,7 +64,7 @@ export function MenuManagement() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return <LoadingScreen />;
   }
 
   return (

@@ -1,20 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Search, Plus, Minus, Send, Receipt, ChevronRight, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Plus, Minus, Send, Receipt, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  imageUrl?: string;
-  available: boolean;
-}
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { createOrder, extractCategories, fetchMenuItems } from "@/lib/orders";
+import type { CartLine, MenuItem } from "@/lib/types";
 
 export function WaitstaffPOS() {
   const { restaurantId } = useAuth();
@@ -22,7 +13,7 @@ export function WaitstaffPOS() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [categories, setCategories] = useState<string[]>(["All"]);
   const [items, setItems] = useState<MenuItem[]>([]);
-  const [cart, setCart] = useState<Array<{id: string, name: string, price: number, quantity: number}>>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [table, setTable] = useState("T12");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -36,13 +27,9 @@ export function WaitstaffPOS() {
   const loadMenu = async () => {
     if (!restaurantId) return;
     try {
-      const q = query(collection(db, 'menuItems'), where('restaurantId', '==', restaurantId));
-      const snapshot = await getDocs(q);
-      const fetchedItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
+      const fetchedItems = await fetchMenuItems(restaurantId);
       setItems(fetchedItems);
-      
-      const cats = new Set(fetchedItems.map(i => i.category));
-      setCategories(["All", ...Array.from(cats)]);
+      setCategories(extractCategories(fetchedItems));
     } catch (e) {
       console.error("Error loading menu", e);
     } finally {
@@ -77,22 +64,13 @@ export function WaitstaffPOS() {
     if (cart.length === 0 || !restaurantId || submitting) return;
     setSubmitting(true);
     try {
-      const orderData = {
+      await createOrder({
         restaurantId,
-        items: cart.map(c => ({
-          id: c.id,
-          name: c.name,
-          quantity: c.quantity,
-          price: c.price,
-          status: 'pending'
-        })),
+        lines: cart,
         total: cartTotal,
-        status: 'pending',
         type: 'dine-in',
         tableInfo: table,
-        createdAt: serverTimestamp()
-      };
-      await addDoc(collection(db, 'orders'), orderData);
+      });
       setCart([]);
       setActiveTab('menu');
       alert("Order sent to kitchen!");
@@ -106,7 +84,7 @@ export function WaitstaffPOS() {
   const filteredItems = items.filter(item => activeCategory === "All" || item.category === activeCategory);
 
   if (loading) {
-    return <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return <LoadingScreen dvh />;
   }
 
   return (

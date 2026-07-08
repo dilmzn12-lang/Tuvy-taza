@@ -6,6 +6,7 @@ import { Store, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export function Onboarding() {
   const { user, loading, restaurantId, setRestaurantId, logOut } = useAuth();
@@ -14,7 +15,7 @@ export function Onboarding() {
   const [creating, setCreating] = useState(false);
 
   if (loading) {
-    return <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
+    return <LoadingScreen dvh />;
   }
 
   if (!user) {
