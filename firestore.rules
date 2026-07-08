@@ -19,7 +19,17 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id.matches('^[a-zA-Z0-9_\\-]+$') && id.size() <= 100 && id.size() > 0;
+      return id is string && id.matches('^[a-zA-Z0-9_\\-]+$') && id.size() <= 100 && id.size() > 0;
+    }
+
+    function isValidNewOrder() {
+      let data = request.resource.data;
+      return isValidId(data.restaurantId)
+        && data.status is string
+        && data.status in ['pending', 'preparing', 'ready', 'served', 'completed', 'cancelled']
+        && data.total is number
+        && data.total >= 0
+        && data.items is list;
     }
 
     match /restaurants/{restaurantId} {
@@ -37,22 +47,39 @@ service cloud.firestore {
 
     match /menuCategories/{docId} {
       allow read: if true;
-      allow write: if isMemberOf(resource.data.restaurantId) || isMemberOf(request.resource.data.restaurantId);
+      allow create: if isMemberOf(request.resource.data.restaurantId);
+      allow update: if isMemberOf(resource.data.restaurantId)
+        && request.resource.data.restaurantId == resource.data.restaurantId;
+      allow delete: if isMemberOf(resource.data.restaurantId);
     }
 
     match /menuItems/{docId} {
       allow read: if true;
-      allow write: if isMemberOf(resource.data.restaurantId) || isMemberOf(request.resource.data.restaurantId);
+      allow create: if isMemberOf(request.resource.data.restaurantId);
+      allow update: if isMemberOf(resource.data.restaurantId)
+        && request.resource.data.restaurantId == resource.data.restaurantId;
+      allow delete: if isMemberOf(resource.data.restaurantId);
     }
 
     match /tables/{docId} {
       allow read: if true;
-      allow write: if isMemberOf(resource.data.restaurantId) || isMemberOf(request.resource.data.restaurantId);
+      allow create: if isMemberOf(request.resource.data.restaurantId);
+      allow update: if isMemberOf(resource.data.restaurantId)
+        && request.resource.data.restaurantId == resource.data.restaurantId;
+      allow delete: if isMemberOf(resource.data.restaurantId);
     }
 
     match /orders/{docId} {
-      allow read: if true; // In production we should lock this down, but allowing for now for customer realtime updates
-      allow write: if true; // Customers can submit orders
+      // Orders are only visible to authenticated staff of the owning restaurant.
+      allow read: if isMemberOf(resource.data.restaurantId);
+      // Customers may submit orders, but the payload is validated and cannot be
+      // used to inject arbitrary fields or forge orders for another tenant.
+      allow create: if isValidNewOrder();
+      // Only staff of the owning restaurant may modify/complete orders, and the
+      // order cannot be reassigned to a different restaurant.
+      allow update: if isMemberOf(resource.data.restaurantId)
+        && request.resource.data.restaurantId == resource.data.restaurantId;
+      allow delete: if isMemberOf(resource.data.restaurantId);
     }
   }
 }
