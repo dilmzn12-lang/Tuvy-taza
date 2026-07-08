@@ -7,9 +7,18 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
 
 export function OwnerDashboard() {
   const { user, loading, restaurantId, logOut } = useAuth();
+
+  const handleLogOut = async () => {
+    try {
+      await logOut();
+    } catch (e) {
+      alert(getErrorMessage(e, "Could not sign out. Please try again."));
+    }
+  };
 
   if (loading || !user || !restaurantId) {
     return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
@@ -40,7 +49,7 @@ export function OwnerDashboard() {
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-amber-600 shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-medium text-white truncate">{user.displayName || 'Owner'}</span>
-              <button onClick={logOut} className="text-xs text-slate-400 hover:text-white text-left truncate">Sign out</button>
+              <button onClick={handleLogOut} className="text-xs text-slate-400 hover:text-white text-left truncate">Sign out</button>
             </div>
           </div>
         </div>

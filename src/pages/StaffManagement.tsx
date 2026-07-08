@@ -5,6 +5,8 @@ import { ArrowLeft, Users, Plus, Shield, ShieldAlert, Trash2, Loader2, MoreVerti
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 
 interface StaffMember {
@@ -21,6 +23,8 @@ export function StaffManagement() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newStaff, setNewStaff] = useState({ name: '', email: '', role: 'waitstaff' as StaffMember['role'], pin: '' });
 
   useEffect(() => {
@@ -28,6 +32,8 @@ export function StaffManagement() {
   }, [restaurantId]);
 
   const loadStaff = async () => {
+    setError(null);
+    setLoading(true);
     try {
       const q = query(collection(db, 'users'), where('restaurantId', '==', restaurantId));
       const snap = await getDocs(q);
@@ -35,6 +41,7 @@ export function StaffManagement() {
       setStaff(staffList);
     } catch (e) {
       console.error(e);
+      setError(getErrorMessage(e, "Could not load staff members. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -43,6 +50,7 @@ export function StaffManagement() {
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!restaurantId || !newStaff.name || !newStaff.email) return;
+    setSaving(true);
     try {
       // In a real app we'd create actual Firebase Auth users.
       // Here we just add to the 'users' collection for the UI.
@@ -57,6 +65,9 @@ export function StaffManagement() {
       setNewStaff({ name: '', email: '', role: 'waitstaff', pin: '' });
     } catch (e) {
       console.error(e);
+      alert(getErrorMessage(e, "Could not add the staff member. Please try again."));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -67,6 +78,7 @@ export function StaffManagement() {
       setStaff(staff.filter(s => s.id !== id));
     } catch (e) {
       console.error(e);
+      alert(getErrorMessage(e, "Could not remove the staff member. Please try again."));
     }
   };
 
@@ -93,6 +105,7 @@ export function StaffManagement() {
       </header>
 
       <main className="max-w-6xl mx-auto p-8">
+        {error && <ErrorBanner message={error} onRetry={loadStaff} className="mb-8" />}
         {isAdding && (
           <div className="bg-[#080808] border border-slate-800 rounded-2xl p-6 mb-8">
             <h3 className="text-white font-bold mb-4">Add New Staff Member</h3>
@@ -119,7 +132,7 @@ export function StaffManagement() {
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</button>
-                <button type="submit" className="flex-1 py-2 rounded-lg bg-amber-500 text-black font-bold hover:bg-amber-400">Save</button>
+                <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-amber-500 text-black font-bold hover:bg-amber-400 disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
               </div>
             </form>
           </div>

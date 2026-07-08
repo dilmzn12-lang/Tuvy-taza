@@ -4,6 +4,8 @@ import { ArrowLeft, Search, Plus, Minus, CreditCard, Banknote, Printer, ChefHat,
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface MenuItem {
@@ -23,6 +25,8 @@ export function POSDashboard() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState<{item: MenuItem, quantity: number}[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (restaurantId) {
@@ -32,6 +36,8 @@ export function POSDashboard() {
 
   const loadMenu = async () => {
     if (!restaurantId) return;
+    setError(null);
+    setLoading(true);
     try {
       const q = query(collection(db, 'menuItems'), where('restaurantId', '==', restaurantId));
       const snapshot = await getDocs(q);
@@ -42,6 +48,7 @@ export function POSDashboard() {
       setCategories(["All", ...Array.from(cats)]);
     } catch (e) {
       console.error("Error loading menu", e);
+      setError(getErrorMessage(e, "Could not load the menu. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -68,7 +75,8 @@ export function POSDashboard() {
   };
 
   const handleSendToKitchen = async () => {
-    if (cart.length === 0 || !restaurantId) return;
+    if (cart.length === 0 || !restaurantId || sending) return;
+    setSending(true);
     try {
       const orderData = {
         restaurantId,
@@ -90,6 +98,9 @@ export function POSDashboard() {
       alert("Order sent to kitchen!");
     } catch (e) {
       console.error("Error sending order", e);
+      alert(getErrorMessage(e, "Could not send the order to the kitchen. Please try again."));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -141,6 +152,7 @@ export function POSDashboard() {
 
         {/* Items Grid */}
         <div className="flex-1 overflow-y-auto p-6 bg-transparent">
+          {error && <ErrorBanner message={error} onRetry={loadMenu} className="mb-4" />}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredItems.map(item => (
               <button
@@ -225,8 +237,9 @@ export function POSDashboard() {
               <CreditCard className="w-4 h-4" /> Card
             </button>
           </div>
-          <button onClick={handleSendToKitchen} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-800 hover:bg-slate-800 text-slate-300 transition-colors font-bold text-sm">
-            <Printer className="w-4 h-4" /> Send to Kitchen
+          <button onClick={handleSendToKitchen} disabled={sending || cart.length === 0} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-800 hover:bg-slate-800 text-slate-300 transition-colors font-bold text-sm disabled:opacity-50">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            {sending ? "Sending..." : "Send to Kitchen"}
           </button>
         </div>
       </div>

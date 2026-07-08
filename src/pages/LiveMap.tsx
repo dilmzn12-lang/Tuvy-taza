@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 type TableData = {
@@ -43,6 +45,7 @@ const STATUS_COLORS = {
 export function LiveMap() {
   const { restaurantId } = useAuth();
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -53,13 +56,21 @@ export function LiveMap() {
       where('status', 'in', ['pending', 'preparing', 'ready', 'completed'])
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setActiveOrders(fetchedOrders);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fetchedOrders = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setError(null);
+        setActiveOrders(fetchedOrders);
+      },
+      (err) => {
+        console.error("Error subscribing to live orders", err);
+        setError(getErrorMessage(err, "Lost connection to the live floor plan. Check your connection and refresh."));
+      }
+    );
 
     return () => unsubscribe();
   }, [restaurantId]);
@@ -104,6 +115,7 @@ export function LiveMap() {
       </header>
 
       <main className="flex-1 relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#080808] to-[#050505] p-8">
+        {error && <ErrorBanner message={error} className="relative z-10 mb-4 max-w-5xl mx-auto" />}
         <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#cbd5e1_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e1_1px,transparent_1px)] bg-[size:4rem_4rem]" />
         
         <div className="relative w-full max-w-5xl mx-auto aspect-video border border-slate-800 rounded-3xl bg-[#080808]/50 backdrop-blur-sm shadow-2xl overflow-hidden mt-8">

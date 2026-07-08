@@ -4,6 +4,8 @@ import { ArrowLeft, Search, Plus, Minus, Send, Receipt, ChevronRight, User, Load
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface MenuItem {
@@ -26,6 +28,7 @@ export function WaitstaffPOS() {
   const [table, setTable] = useState("T12");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (restaurantId) {
@@ -35,6 +38,8 @@ export function WaitstaffPOS() {
 
   const loadMenu = async () => {
     if (!restaurantId) return;
+    setError(null);
+    setLoading(true);
     try {
       const q = query(collection(db, 'menuItems'), where('restaurantId', '==', restaurantId));
       const snapshot = await getDocs(q);
@@ -45,6 +50,7 @@ export function WaitstaffPOS() {
       setCategories(["All", ...Array.from(cats)]);
     } catch (e) {
       console.error("Error loading menu", e);
+      setError(getErrorMessage(e, "Could not load the menu. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -98,6 +104,7 @@ export function WaitstaffPOS() {
       alert("Order sent to kitchen!");
     } catch (e) {
       console.error("Error sending order", e);
+      alert(getErrorMessage(e, "Could not send the order to the kitchen. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -161,6 +168,7 @@ export function WaitstaffPOS() {
 
             {/* Menu Items */}
             <div className="p-4 grid gap-3">
+              {error && <ErrorBanner message={error} onRetry={loadMenu} />}
               {filteredItems.map(item => (
                 <div key={item.id} className="bg-[#080808] border border-slate-800 p-4 rounded-2xl flex justify-between items-center active:scale-[0.98] transition-transform">
                   <div>
